@@ -138,24 +138,28 @@
                     android:layout_height="wrap_content"
                     android:text="@string/gate_4" />
 
+
+                <Button
+                    android:id="@+id/bt_all_gates"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/all_gates" />
+
                 <Button
                     android:id="@+id/btn_space1"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/space_1" />
-
                 <Button
                     android:id="@+id/btn_space2"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/space_2" />
-
                 <Button
                     android:id="@+id/btn_space3"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/space_3" />
-                
 
             </LinearLayout>
 

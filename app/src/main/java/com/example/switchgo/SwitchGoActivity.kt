@@ -31,6 +31,9 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import android.widget.Button
+import android.graphics.Color
+import kotlinx.coroutines.withContext
 
 class SwitchGoActivity : AppCompatActivity(), View.OnClickListener, McuUpdateCallback {
     private lateinit var rtti: TextView
@@ -261,6 +264,38 @@ class SwitchGoActivity : AppCompatActivity(), View.OnClickListener, McuUpdateCal
                 scope.launch {
                     val response = this@SwitchGoActivity.switchGo.getAllSwitchStates()
                     setMsg(response)
+                    Log.d("AAAAAAAAAAABBBBBBBB","FFF:$response")
+                    val data = hexStringToByteArray(response)
+                    // space staus:  1 :已安装, 2:未安装
+                    val space1_status = data[17].toInt()
+                    val space2_status = data[18].toInt()
+                    val space3_status = data[19].toInt()
+
+                    withContext(Dispatchers.Main){
+                        updateButtonColor(findViewById(R.id.btn_space1),space1_status)
+                        updateButtonColor(findViewById(R.id.btn_space2),space2_status)
+                        updateButtonColor(findViewById(R.id.btn_space3),space3_status)
+                    }
+
+                    val door1_motor_status = data[5].toInt()
+                    val door2_motor_status = data[6].toInt()
+                    val door3_motor_status = data[7].toInt()
+                    val door4_motor_status = data[8].toInt()
+
+                    val door1_open_limit = data[10].toInt()
+                    val door2_open_limit = data[12].toInt()
+                    val door3_open_limit = data[14].toInt()
+                    val door4_open_limit = data[16].toInt()
+
+                    val door1_close_limit = data[9].toInt()
+                    val door2_close_limit = data[11].toInt()
+                    val door3_close_limit = data[13].toInt()
+                    val door4_close_limit = data[15].toInt()
+
+                    val door1_blockage_alarm = data[22].toInt()
+                    val door2_blockage_alarm = data[22].toInt()
+                    val door3_blockage_alarm = data[22].toInt()
+                    val door4_blockage_alarm = data[22].toInt()
                     setMsg(parseResponse(response))
                 }
             }
@@ -291,8 +326,32 @@ class SwitchGoActivity : AppCompatActivity(), View.OnClickListener, McuUpdateCal
     }
 
 
+    // 定义一个辅助函数，避免重复代码
+    private fun updateButtonColor(button: Button, status: Int) {
+        val color = when (status) {
+            1 -> Color.GREEN  // 已安装：绿色
+            2 -> Color.YELLOW // 未安装：黄色
+            else -> Color.RED // 其他：红色
+        }
+        button.setBackgroundColor(color)
+    }
 
-
+    /**
+     * 将十六进制字符串转换为字节数组
+     */
+    private fun hexStringToByteArray(s: String): ByteArray {
+        // 移除字符串中的空格（如果有）
+        val cleanString = s.replace(" ", "")
+        val len = cleanString.length
+        val data = ByteArray(len / 2)
+        var i = 0
+        while (i < len) {
+            data[i / 2] = ((Character.digit(cleanString[i], 16) shl 4)
+                    + Character.digit(cleanString[i + 1], 16)).toByte()
+            i += 2
+        }
+        return data
+    }
 
 
     override fun onDestroy() {

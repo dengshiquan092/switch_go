@@ -47,6 +47,6 @@
     <string name="recovery_mcu1">Recovery MCU1</string>
     <string name="recovery_mcu2">Recovery MCU2</string>
     <string name="space_1">SPACE_1</string>
-    <string name="space_2">SPACE_1</string>
-    <string name="space_3">SPACE_1</string>
+    <string name="space_2">SPACE_2</string>
+    <string name="space_3">SPACE_3</string>
 </resources>

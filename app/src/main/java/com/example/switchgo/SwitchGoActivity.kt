@@ -4,6 +4,7 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -169,7 +170,18 @@ class SwitchGoActivity : AppCompatActivity(), View.OnClickListener, McuUpdateCal
                 openJob?.cancel()
                 finish()
             }
-            R.id.bt_clear_display -> setMsg("")
+            R.id.bt_clear_display -> {
+                val space1Btn = findViewById<Button>(R.id.btn_space1)
+                val space2Btn = findViewById<Button>(R.id.btn_space2)
+                val space3Btn = findViewById<Button>(R.id.btn_space3)
+                val usbDeviceBtn = findViewById<Button>(R.id.bt_get_hid_usb)
+                val originColor = Color.parseColor("#D5D6D6")
+                space1Btn.backgroundTintList = ColorStateList.valueOf(originColor)
+                space2Btn.backgroundTintList = ColorStateList.valueOf(originColor)
+                space3Btn.backgroundTintList = ColorStateList.valueOf(originColor)
+                usbDeviceBtn.backgroundTintList = ColorStateList.valueOf(originColor)
+                setMsg("")
+            }
             R.id.bt_hid_get_mcu1_version -> {
                 scope.launch {
                     val mcu1 = this@SwitchGoActivity.switchGo.getMcuVersion(0x01)
@@ -183,11 +195,11 @@ class SwitchGoActivity : AppCompatActivity(), View.OnClickListener, McuUpdateCal
                         parts[6].equals("AB", ignoreCase = true) &&
                         parts[7].equals("25", ignoreCase = true) &&
                         parts[8].equals("12", ignoreCase = true) &&
-                        parts[9].equals("02", ignoreCase = true)) {
+                        parts[9].equals("03", ignoreCase = true)) {
 
                         // 3. 匹配成功，将按钮背景设为绿色
                         v?.setBackgroundColor(android.graphics.Color.GREEN)
-                        setMsg("MCU1 Version Match: AB 25 12 02")
+                        setMsg("MCU1 Version Match: AB 25 12 03")
                     } else {
                         // 匹配失败，可以设为红色或保持原样
                         v?.setBackgroundColor(android.graphics.Color.RED)
@@ -209,11 +221,11 @@ class SwitchGoActivity : AppCompatActivity(), View.OnClickListener, McuUpdateCal
                         parts[6].equals("AC", ignoreCase = true) &&
                         parts[7].equals("25", ignoreCase = true) &&
                         parts[8].equals("12", ignoreCase = true) &&
-                        parts[9].equals("02", ignoreCase = true)) {
+                        parts[9].equals("03", ignoreCase = true)) {
 
                         // 3. 匹配成功，将按钮背景设为绿色
                         v?.setBackgroundColor(android.graphics.Color.GREEN)
-                        setMsg("MCU1 Version Match: AB 25 12 02")
+                        setMsg("MCU2 Version Match: AC 25 12 03")
                     } else {
                         // 匹配失败，可以设为红色或保持原样
                         v?.setBackgroundColor(android.graphics.Color.RED)
@@ -264,7 +276,6 @@ class SwitchGoActivity : AppCompatActivity(), View.OnClickListener, McuUpdateCal
                 scope.launch {
                     val response = this@SwitchGoActivity.switchGo.getAllSwitchStates()
                     setMsg(response)
-                    Log.d("AAAAAAAAAAABBBBBBBB","FFF:$response")
                     val data = hexStringToByteArray(response)
                     // space staus:  1 :已安装, 2:未安装
                     val space1_status = data[17].toInt()

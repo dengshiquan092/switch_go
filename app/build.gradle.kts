@@ -13,7 +13,7 @@ android {
         applicationId = "com.example.switchgo"
         minSdk = 24
         targetSdk = 34
-        versionCode = 3
+        versionCode = 6
         versionName = "1.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

@@ -1,5 +1,12 @@
 package com.example.switchgo
 
+// ... 保持原有 import 不变 ...
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Intent
+import android.content.IntentFilter
+import android.hardware.usb.UsbDevice
+import android.hardware.usb.UsbManager
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
@@ -34,6 +41,7 @@ import java.io.FileOutputStream
 import java.io.IOException
 import android.widget.Button
 import android.graphics.Color
+import android.os.Looper
 import kotlinx.coroutines.withContext
 
 class SwitchGoActivity : AppCompatActivity(), View.OnClickListener, McuUpdateCallback {
@@ -53,6 +61,26 @@ class SwitchGoActivity : AppCompatActivity(), View.OnClickListener, McuUpdateCal
     private val INVISIBLE_BUTTON_MAX_CLICKS = 5
     private val mutableStringList: MutableList<String> = mutableListOf()
 
+    // --- 新增：USB 权限相关变量 ---
+    private val ACTION_USB_PERMISSION = "com.example.switchgo.USB_PERMISSION"
+    private val usbReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (ACTION_USB_PERMISSION == intent.action) {
+                synchronized(this) {
+                    val device: UsbDevice? = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
+                    if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
+                        device?.apply {
+                            setMsg("USB 权限授予成功")
+                            switchGo.openDevice()
+                        }
+                    } else {
+                        setMsg("USB 权限被拒绝")
+                    }
+                }
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_swtich_go)
@@ -62,12 +90,33 @@ class SwitchGoActivity : AppCompatActivity(), View.OnClickListener, McuUpdateCal
 
     override fun onResume() {
         super.onResume()
-        switchGo.openDevice()
+        // --- 修改：增加主动权限检查逻辑 ---
+        val filter = IntentFilter(ACTION_USB_PERMISSION)
+        registerReceiver(usbReceiver, filter)
+
+        val usbManager = getSystemService(Context.USB_SERVICE) as UsbManager
+        // 查找对应的设备 (VID: 1155)
+        val device = usbManager.deviceList.values.find { it.vendorId == 1155 }
+
+        if (device != null) {
+            if (!usbManager.hasPermission(device)) {
+                val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0
+                val permissionIntent = PendingIntent.getBroadcast(this, 0, Intent(ACTION_USB_PERMISSION), flags)
+                usbManager.requestPermission(device, permissionIntent)
+                setMsg("正在申请 USB 权限...")
+            } else {
+                switchGo.openDevice()
+            }
+        } else {
+            switchGo.openDevice()
+        }
     }
 
     private fun init() {
         val context = this
         scope.launch {
+            delay(500)
+            switchGo.getHidDevices()
             copyAssetsToInternalStorage(context,arrayOf("SwitchGoTopApp.bin","SwitchGoBottomApp.bin"))
         }
         switchGo = SwitchGo.getInstance(this)
@@ -131,7 +180,6 @@ class SwitchGoActivity : AppCompatActivity(), View.OnClickListener, McuUpdateCal
                 val usbDevices = switchGo.getHidDevices()
                 setMsg(usbDevices)
 
-                // 1. 定义预期的设备清单（Key为显示名称，Value为匹配特征字符串）
                 val expectedDevices = mapOf(
                     "MCU-1 (Top)" to "1155,22336",
                     "MCU-2 (Bottom)" to "1155,22352",
@@ -139,73 +187,69 @@ class SwitchGoActivity : AppCompatActivity(), View.OnClickListener, McuUpdateCal
                     "Android Accessory" to "7531,42151"
                 )
 
-                // 2. 预处理返回的字符串，去掉空格以防匹配干扰
                 val cleanedUsbOutput = usbDevices.replace(" ", "")
-
-                // 3. 筛选出“未找到”的设备
                 val missingDevices = expectedDevices.filter { entry ->
                     !cleanedUsbOutput.contains(entry.value)
                 }
 
-                // 4. 根据结果更新 UI
+                // --- 修改开始 ---
                 if (missingDevices.isEmpty()) {
-                    // 全部找到
-                    v?.setBackgroundColor(android.graphics.Color.GREEN)
+                    // 全部找到：使用 ColorStateList 更新着色，覆盖掉之前的清除颜色
+                    v?.backgroundTintList = ColorStateList.valueOf(android.graphics.Color.GREEN)
                     setMsg(">>> All devices matched successfully!")
                 } else {
-                    // 存在缺失
-                    v?.setBackgroundColor(android.graphics.Color.RED)
+                    // 存在缺失：同理，使用着色
+                    v?.backgroundTintList = ColorStateList.valueOf(android.graphics.Color.RED)
 
-                    // 罗列出具体缺少的设备名称
                     val missingNames = missingDevices.keys.joinToString(", ")
                     setMsg(">>> MISSING DEVICES: $missingNames")
-
-                    // 也可以逐行打印更详细的警告
-                    missingDevices.forEach { (name, id) ->
-                        Log.e("USB_CHECK", "Missing hardware: $name (Expected ID: $id)")
-                    }
                 }
+                // --- 修改结束 ---
             }
             R.id.bt_exit -> {
                 openJob?.cancel()
                 finish()
             }
             R.id.bt_clear_display -> {
-                val space1Btn = findViewById<Button>(R.id.btn_space1)
-                val space2Btn = findViewById<Button>(R.id.btn_space2)
-                val space3Btn = findViewById<Button>(R.id.btn_space3)
-                val usbDeviceBtn = findViewById<Button>(R.id.bt_get_hid_usb)
                 val originColor = Color.parseColor("#D5D6D6")
-                space1Btn.backgroundTintList = ColorStateList.valueOf(originColor)
-                space2Btn.backgroundTintList = ColorStateList.valueOf(originColor)
-                space3Btn.backgroundTintList = ColorStateList.valueOf(originColor)
-                usbDeviceBtn.backgroundTintList = ColorStateList.valueOf(originColor)
+                val colorList = ColorStateList.valueOf(originColor)
+
+                // 获取 View 并设置颜色
+                findViewById<Button>(R.id.btn_space1).backgroundTintList = colorList
+                findViewById<Button>(R.id.btn_space2).backgroundTintList = colorList
+                findViewById<Button>(R.id.btn_space3).backgroundTintList = colorList
+                findViewById<Button>(R.id.bt_get_hid_usb).backgroundTintList = colorList
+                findViewById<Button>(R.id.bt_hid_get_mcu1_version).backgroundTintList = colorList
+                findViewById<Button>(R.id.bt_hid_get_mcu2_version).backgroundTintList = colorList
+
+
+                // 也可以顺便重置背景颜色，防止 Tint 失效
+                // findViewById<Button>(R.id.btn_space1).setBackgroundColor(Color.WHITE)
+
                 setMsg("")
             }
             R.id.bt_hid_get_mcu1_version -> {
                 scope.launch {
                     val mcu1 = this@SwitchGoActivity.switchGo.getMcuVersion(0x01)
-
-                    // 1. 将返回的字符串按空格分割成列表
                     val parts = mcu1.split(" ").filter { it.isNotBlank() }
 
-                    // 2. 判断长度是否足够并校验特定位置的值
-                    // 索引 6-9 对应你说的第 7 组开始的 4 组数据
-                    if (parts.size >= 10 &&
-                        parts[6].equals("AB", ignoreCase = true) &&
-                        parts[7].equals("25", ignoreCase = true) &&
-                        parts[8].equals("12", ignoreCase = true) &&
-                        parts[9].equals("03", ignoreCase = true)) {
+                    // 切换到主线程更新 UI (setBackgroundColor 内部会自动切，但为了规范建议显式切换)
+                    withContext(Dispatchers.Main) {
+                        if (parts.size >= 10 &&
+                            parts[6].equals("AB", ignoreCase = true) &&
+                            parts[7].equals("25", ignoreCase = true) &&
+                            parts[8].equals("12", ignoreCase = true) &&
+                            parts[9].equals("03", ignoreCase = true)) {
 
-                        // 3. 匹配成功，将按钮背景设为绿色
-                        v?.setBackgroundColor(android.graphics.Color.GREEN)
-                        setMsg("MCU1 Version Match: AB 25 12 03")
-                    } else {
-                        // 匹配失败，可以设为红色或保持原样
-                        v?.setBackgroundColor(android.graphics.Color.RED)
-                        setMsg("MCU1 Version Mismatch or Error")
+                            // 关键修改：使用 backgroundTintList 设为绿色
+                            v?.backgroundTintList = ColorStateList.valueOf(android.graphics.Color.GREEN)
+                            setMsg("MCU1 Version Match: AB 25 12 03")
+                        } else {
+                            // 关键修改：使用 backgroundTintList 设为红色
+                            v?.backgroundTintList = ColorStateList.valueOf(android.graphics.Color.RED)
+                            setMsg("MCU1 Version Mismatch or Error")
+                        }
                     }
-
                     setMsg(mcu1)
                 }
             }
@@ -224,11 +268,11 @@ class SwitchGoActivity : AppCompatActivity(), View.OnClickListener, McuUpdateCal
                         parts[9].equals("03", ignoreCase = true)) {
 
                         // 3. 匹配成功，将按钮背景设为绿色
-                        v?.setBackgroundColor(android.graphics.Color.GREEN)
+                        v?.backgroundTintList = ColorStateList.valueOf(android.graphics.Color.GREEN)
                         setMsg("MCU2 Version Match: AC 25 12 03")
                     } else {
                         // 匹配失败，可以设为红色或保持原样
-                        v?.setBackgroundColor(android.graphics.Color.RED)
+                        v?.backgroundTintList = ColorStateList.valueOf(android.graphics.Color.RED)
                         setMsg("MCU1 Version Mismatch or Error")
                     }
                     setMsg(mcu2)
@@ -276,11 +320,23 @@ class SwitchGoActivity : AppCompatActivity(), View.OnClickListener, McuUpdateCal
                 scope.launch {
                     val response = this@SwitchGoActivity.switchGo.getAllSwitchStates()
                     setMsg(response)
+
+                    if (response.isNullOrBlank()) {
+                        setMsg("未获得设备授权或设备未响应")
+                        return@launch
+                    }
+
+                    // 检查 2: 字符串长度是否符合预期 (Hex 字符串长度应该是字节数的 2 倍)
+                    // 既然你要访问 data[19]，那么 data 长度至少要 20，response 长度至少要 40
+                    if (response.replace(" ", "").length < 40) {
+                        setMsg("数据长度异常，请重新尝试")
+                        return@launch
+                    }
                     val data = hexStringToByteArray(response)
                     // space staus:  1 :已安装, 2:未安装
-                    val space1_status = data[17].toInt()
-                    val space2_status = data[18].toInt()
-                    val space3_status = data[19].toInt()
+                    val space1_status = data[17].toInt() and 0xFF
+                    val space2_status = data[18].toInt() and 0xFF
+                    val space3_status = data[19].toInt() and 0xFF
 
                     withContext(Dispatchers.Main){
                         updateButtonColor(findViewById(R.id.btn_space1),space1_status)
@@ -339,12 +395,17 @@ class SwitchGoActivity : AppCompatActivity(), View.OnClickListener, McuUpdateCal
 
     // 定义一个辅助函数，避免重复代码
     private fun updateButtonColor(button: Button, status: Int) {
+        // 这里的日志能帮你确认数据是否真的解析对了
+        setMsg("Debug - Space Status: $status")
+
         val color = when (status) {
-            1 -> Color.GREEN  // 已安装：绿色
-            2 -> Color.YELLOW // 未安装：黄色
-            else -> Color.RED // 其他：红色
+            1 -> Color.GREEN       // 已安装
+            2 -> Color.YELLOW      // 未安装
+            else -> Color.RED      // 异常/未知
         }
-        button.setBackgroundColor(color)
+
+        // 统一使用 TintList，这会覆盖之前的清除状态
+        button.backgroundTintList = ColorStateList.valueOf(color)
     }
 
     /**
@@ -421,7 +482,10 @@ class SwitchGoActivity : AppCompatActivity(), View.OnClickListener, McuUpdateCal
 
     override fun onPause() {
         super.onPause()
-
+        // --- 新增：注销广播防止内存泄漏 ---
+        try {
+            unregisterReceiver(usbReceiver)
+        } catch (e: Exception) {}
     }
 
     override fun onProgress(len: Long) {
@@ -607,5 +671,3 @@ class SwitchGoActivity : AppCompatActivity(), View.OnClickListener, McuUpdateCal
         }
     }
 }
-
-

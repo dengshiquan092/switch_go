@@ -158,7 +158,9 @@ class SwitchGoActivity : AppCompatActivity(), View.OnClickListener, McuUpdateCal
             R.id.invisible_button,
             R.id.btn_space1,
             R.id.btn_space2,
-            R.id.btn_space3
+            R.id.btn_space3,
+            R.id.btn_all_door_open_switch_status,
+            R.id.btn_all_door_close_switch_status
         )
         buttonIds.forEach { id ->
             findViewById<View>(id)?.setOnClickListener(this)
@@ -236,14 +238,14 @@ class SwitchGoActivity : AppCompatActivity(), View.OnClickListener, McuUpdateCal
                     // 切换到主线程更新 UI (setBackgroundColor 内部会自动切，但为了规范建议显式切换)
                     withContext(Dispatchers.Main) {
                         if (parts.size >= 10 &&
-                            parts[6].equals("AB", ignoreCase = true) &&
-                            parts[7].equals("25", ignoreCase = true) &&
-                            parts[8].equals("12", ignoreCase = true) &&
-                            parts[9].equals("03", ignoreCase = true)) {
+                            parts[6].equals("26", ignoreCase = true) &&
+                            parts[7].equals("03", ignoreCase = true) &&
+                            parts[8].equals("06", ignoreCase = true) &&
+                            parts[9].equals("05", ignoreCase = true)) {
 
                             // 关键修改：使用 backgroundTintList 设为绿色
                             v?.backgroundTintList = ColorStateList.valueOf(android.graphics.Color.GREEN)
-                            setMsg("MCU1 Version Match: AB 25 12 03")
+                            setMsg("MCU1 Version Match: 26 03 06 05")
                         } else {
                             // 关键修改：使用 backgroundTintList 设为红色
                             v?.backgroundTintList = ColorStateList.valueOf(android.graphics.Color.RED)
@@ -251,6 +253,256 @@ class SwitchGoActivity : AppCompatActivity(), View.OnClickListener, McuUpdateCal
                         }
                     }
                     setMsg(mcu1)
+                }
+            }
+
+            R.id.btn_all_door_open_switch_status -> {
+                // 1. 首先弹出确认对话框
+                androidx.appcompat.app.AlertDialog.Builder(this)
+                    .setTitle("操作确认")
+                    .setMessage("请确认全部的门已经处于开门状态")
+                    .setPositiveButton("确定") { _, _ ->
+                        // 2. 用户点击确定后，开始执行检测逻辑
+                        scope.launch {
+
+                            setMsg("")
+                            val response = this@SwitchGoActivity.switchGo.getAllSwitchStates()
+                            setMsg("收到回复: $response")
+                            val data = hexStringToByteArray(response)
+
+                            var isAllValid = true
+                            val errorMessages = mutableListOf<String>()
+
+                            // 1. 验证电机状态 (index 5-8, 预期均为 1)
+                            for (i in 5..8) {
+                                val status = data[i].toInt()
+                                if (status != 1) {
+                                    isAllValid = false
+                                    val msg = "电机${i - 4}状态异常: 预期 1, 实际 $status"
+                                    errorMessages.add(msg)
+                                    Log.e("SwitchGo", msg)
+                                }
+                            }
+
+                            // 2. 验证开启状态 (index 10, 12, 14, 16, 预期均为 1)
+                            val openIndices = intArrayOf(10, 12, 14, 16)
+                            openIndices.forEachIndexed { index, dataIdx ->
+                                val status = data[dataIdx].toInt()
+                                if (status != 1) {
+                                    isAllValid = false
+                                    val msg = "门 ${index + 1} 开启状态异常: 预期 1, 实际 $status"
+                                    errorMessages.add(msg)
+                                    Log.e("SwitchGo", msg)
+                                }
+                            }
+
+                            // 3. 验证关闭状态 (index 9, 11, 13, 15, 预期均为 0)
+                            val closeIndices = intArrayOf(9, 11, 13, 15)
+                            closeIndices.forEachIndexed { index, dataIdx ->
+                                val status = data[dataIdx].toInt()
+                                if (status != 0) {
+                                    isAllValid = false
+                                    val msg = "门 ${index + 1} 关闭状态异常: 预期 0, 实际 $status"
+                                    errorMessages.add(msg)
+                                    Log.e("SwitchGo", msg)
+                                }
+                            }
+
+                            // 4. 验证堵塞报警状态 (index 22, 23, 24, 25, 预期均为 0)
+                            val blockageIndices = intArrayOf(22, 23, 24, 25)
+                            blockageIndices.forEachIndexed { index, dataIdx ->
+                                val status = data[dataIdx].toInt()
+                                if (status != 0) {
+                                    isAllValid = false
+                                    val msg = "门 ${index + 1} 堵塞报警异常: 预期 0, 实际 $status"
+                                    errorMessages.add(msg)
+                                    Log.e("SwitchGo", msg)
+                                }
+                            }
+
+                            // 3. UI 更新结果
+                            withContext(Dispatchers.Main) {
+                                val btn = findViewById<Button>(R.id.btn_all_door_open_switch_status)
+                                if (isAllValid) {
+                                    btn.backgroundTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.GREEN)
+                                    setMsg("检测通过：所有状态符合预期 (Green)")
+                                } else {
+                                    btn.backgroundTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.RED)
+                                    val fullErrorLog = errorMessages.joinToString("\n")
+                                    setMsg("门全部开启时,相关传感器检测失败 (Red):\n$fullErrorLog")
+                                }
+                            }
+                        }
+                    }
+                    .setNegativeButton("取消", null) // 点击取消则不做任何操作
+                    .show()
+            }
+
+
+            R.id.btn_all_door_close_switch_status -> {
+                // 1. 弹出确认对话框
+                androidx.appcompat.app.AlertDialog.Builder(this)
+                    .setTitle("操作确认")
+                    .setMessage("请确认全部的门已经处于关闭状态")
+                    .setPositiveButton("确定") { _, _ ->
+                        // 2. 用户点击确定后，开始执行检测逻辑
+                        scope.launch {
+                            setMsg("")
+                            val response = this@SwitchGoActivity.switchGo.getAllSwitchStates()
+                            setMsg("收到回复: $response") // 首先显示原始报文
+                            val data = hexStringToByteArray(response)
+
+                            var isAllValid = true
+                            val errorMessages = mutableListOf<String>()
+
+                            // 1. 验证电机状态 (index 5-8, 预期均为 0)
+                            for (i in 5..8) {
+                                val status = data[i].toInt()
+                                if (status != 0) {
+                                    isAllValid = false
+                                    val msg = "电机${i - 4}状态异常: 预期 0, 实际 $status"
+                                    errorMessages.add(msg)
+                                    Log.e("SwitchGo", msg)
+                                }
+                            }
+
+                            // 2. 验证开启状态 (index 10, 12, 14, 16, 预期均为 0)
+                            val openIndices = intArrayOf(10, 12, 14, 16)
+                            openIndices.forEachIndexed { index, dataIdx ->
+                                val status = data[dataIdx].toInt()
+                                if (status != 0) {
+                                    isAllValid = false
+                                    val msg = "门 ${index + 1} 开启状态异常: 预期 0, 实际 $status"
+                                    errorMessages.add(msg)
+                                    Log.e("SwitchGo", msg)
+                                }
+                            }
+
+                            // 3. 验证关闭状态 (index 9, 11, 13, 15, 预期均为 1)
+                            val closeIndices = intArrayOf(9, 11, 13, 15)
+                            closeIndices.forEachIndexed { index, dataIdx ->
+                                val status = data[dataIdx].toInt()
+                                if (status != 1) {
+                                    isAllValid = false
+                                    val msg = "门 ${index + 1} 关闭状态异常: 预期 1, 实际 $status"
+                                    errorMessages.add(msg)
+                                    Log.e("SwitchGo", msg)
+                                }
+                            }
+
+                            // 4. 验证堵塞报警状态 (index 22, 23, 24, 25, 预期均为 96)
+                            val blockageIndices = intArrayOf(22, 23, 24, 25)
+                            blockageIndices.forEachIndexed { index, dataIdx ->
+                                val status = data[dataIdx].toInt()
+                                if (status != 96) {
+                                    isAllValid = false
+                                    val msg = "门 ${index + 1} 堵塞报警异常: 预期 96, 实际 $status"
+                                    errorMessages.add(msg)
+                                    Log.e("SwitchGo", msg)
+                                }
+                            }
+
+                            // 3. UI 更新结果
+                            withContext(Dispatchers.Main) {
+                                val btn = findViewById<Button>(R.id.btn_all_door_close_switch_status)
+                                if (isAllValid) {
+                                    // 全部符合预期
+                                    btn.backgroundTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.GREEN)
+                                    setMsg("检测通过：所有状态符合预期 (Green)")
+                                } else {
+                                    // 存在异常
+                                    btn.backgroundTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.RED)
+                                    // 将所有收集到的错误信息一次性显示在 UI 上
+                                    val fullErrorLog = errorMessages.joinToString("\n")
+                                    setMsg("门全部关闭时,相关传感器检测失败 (Red):\n$fullErrorLog")
+                                }
+                            }
+                        }
+                    }
+                    .setNegativeButton("取消", null)
+                    .show()
+            }
+
+
+            R.id.btn_space1 -> {
+                scope.launch {
+                    setMsg("")
+                    val response = this@SwitchGoActivity.switchGo.getAllSwitchStates()
+                    setMsg("收到回复: $response") // 首先显示原始报文
+                    val data = hexStringToByteArray(response)
+                    // 获取状态值
+                    val space1_status = data[17].toInt()
+
+                    // 切换到主线程更新 UI
+                    withContext(Dispatchers.Main) {
+                        val btn = findViewById<Button>(R.id.btn_space1)
+                        if (space1_status == 1) {
+                            // 状态正常：变绿
+                            btn.backgroundTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.GREEN)
+                            setMsg("槽型开关1状态正常")
+                        } else {
+                            // 状态异常：变红
+                            btn.backgroundTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.RED)
+                            val errorLog = "槽型开关1状态异常, 实际值: $space1_status"
+                            setMsg(errorLog)
+                            Log.e("SwitchGo", errorLog)
+                        }
+                    }
+                }
+            }
+
+            R.id.btn_space2 -> {
+                scope.launch {
+                    setMsg("")
+                    val response = this@SwitchGoActivity.switchGo.getAllSwitchStates()
+                    setMsg("收到回复: $response") // 首先显示原始报文
+                    val data = hexStringToByteArray(response)
+                    // 获取状态值
+                    val space2_status = data[18].toInt()
+
+                    // 切换到主线程更新 UI
+                    withContext(Dispatchers.Main) {
+                        val btn = findViewById<Button>(R.id.btn_space2)
+                        if (space2_status == 1) {
+                            // 状态正常：变绿
+                            btn.backgroundTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.GREEN)
+                            setMsg("槽型开关2状态正常")
+                        } else {
+                            // 状态异常：变红
+                            btn.backgroundTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.RED)
+                            val errorLog = "槽型开关2状态异常, 实际值: $space2_status"
+                            setMsg(errorLog)
+                            Log.e("SwitchGo", errorLog)
+                        }
+                    }
+                }
+            }
+
+
+            R.id.btn_space3 -> {
+                scope.launch {
+                    setMsg("")
+                    val response = this@SwitchGoActivity.switchGo.getAllSwitchStates()
+                    setMsg("收到回复: $response") // 首先显示原始报文
+                    val data = hexStringToByteArray(response)
+                    // 获取状态值
+                    val space3_status = data[19].toInt()
+
+                    // 切换到主线程更新 UI
+                    withContext(Dispatchers.Main) {
+                        val btn = findViewById<Button>(R.id.btn_space3)
+                        if (space3_status == 1) {
+                            // 状态正常：变绿
+                            btn.backgroundTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.GREEN)
+                            setMsg("槽型开关1状态正常")
+                        } else {
+                            // 状态异常：变红
+                            btn.backgroundTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.RED)
+                            val errorLog = "槽型开关3状态异常, 实际值: $space3_status"
+                            setMsg(errorLog)
+                            Log.e("SwitchGo", errorLog)
+                        }
+                    }
                 }
             }
 
@@ -262,18 +514,18 @@ class SwitchGoActivity : AppCompatActivity(), View.OnClickListener, McuUpdateCal
                     // 2. 判断长度是否足够并校验特定位置的值
                     // 索引 6-9 对应你说的第 7 组开始的 4 组数据
                     if (parts.size >= 10 &&
-                        parts[6].equals("AC", ignoreCase = true) &&
-                        parts[7].equals("25", ignoreCase = true) &&
-                        parts[8].equals("12", ignoreCase = true) &&
-                        parts[9].equals("03", ignoreCase = true)) {
+                        parts[6].equals("26", ignoreCase = true) &&
+                        parts[7].equals("03", ignoreCase = true) &&
+                        parts[8].equals("06", ignoreCase = true) &&
+                        parts[9].equals("05", ignoreCase = true)) {
 
                         // 3. 匹配成功，将按钮背景设为绿色
                         v?.backgroundTintList = ColorStateList.valueOf(android.graphics.Color.GREEN)
-                        setMsg("MCU2 Version Match: AC 25 12 03")
+                        setMsg("MCU2 Version Match: 26 03 06 05")
                     } else {
                         // 匹配失败，可以设为红色或保持原样
                         v?.backgroundTintList = ColorStateList.valueOf(android.graphics.Color.RED)
-                        setMsg("MCU1 Version Mismatch or Error")
+                        setMsg("MCU2 Version Mismatch or Error")
                     }
                     setMsg(mcu2)
                 }
@@ -332,43 +584,37 @@ class SwitchGoActivity : AppCompatActivity(), View.OnClickListener, McuUpdateCal
                         setMsg("数据长度异常，请重新尝试")
                         return@launch
                     }
-                    val data = hexStringToByteArray(response)
-                    // space staus:  1 :已安装, 2:未安装
-                    val space1_status = data[17].toInt() and 0xFF
-                    val space2_status = data[18].toInt() and 0xFF
-                    val space3_status = data[19].toInt() and 0xFF
 
-                    withContext(Dispatchers.Main){
-                        updateButtonColor(findViewById(R.id.btn_space1),space1_status)
-                        updateButtonColor(findViewById(R.id.btn_space2),space2_status)
-                        updateButtonColor(findViewById(R.id.btn_space3),space3_status)
-                    }
-
-                    val door1_motor_status = data[5].toInt()
-                    val door2_motor_status = data[6].toInt()
-                    val door3_motor_status = data[7].toInt()
-                    val door4_motor_status = data[8].toInt()
-
-                    val door1_open_limit = data[10].toInt()
-                    val door2_open_limit = data[12].toInt()
-                    val door3_open_limit = data[14].toInt()
-                    val door4_open_limit = data[16].toInt()
-
-                    val door1_close_limit = data[9].toInt()
-                    val door2_close_limit = data[11].toInt()
-                    val door3_close_limit = data[13].toInt()
-                    val door4_close_limit = data[15].toInt()
-
-                    val door1_blockage_alarm = data[22].toInt()
-                    val door2_blockage_alarm = data[22].toInt()
-                    val door3_blockage_alarm = data[22].toInt()
-                    val door4_blockage_alarm = data[22].toInt()
                     setMsg(parseResponse(response))
                 }
             }
             R.id.get_switch_lamp -> {
+                // 将门打开
+//                switchGo.controllerAllDoors(1, 1, 1, 1)
                 interLight = if (interLight == 1) 0 else 1
                 switchGo.toggleInteriorLight(interLight)
+
+                // 这里的 v 通常是 onClick(View v) 传入的参数
+                val currentView = v
+
+                // 2. 弹出对话框确认状态
+                androidx.appcompat.app.AlertDialog.Builder(currentView.context)
+                    .setTitle("灯光确认")
+                    .setMessage("内部灯是否都亮起？")
+                    .setPositiveButton("YES") { _, _ ->
+                        // 使用 backgroundTintList 修改为绿色
+                        currentView?.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                            android.graphics.Color.GREEN
+                        )
+                    }
+                    .setNegativeButton("NO") { _, _ ->
+                        // 使用 backgroundTintList 修改为红色
+                        currentView?.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                            android.graphics.Color.RED
+                        )
+                    }
+                    .setCancelable(false)
+                    .show()
             }
             R.id.bt_mcu_reboot -> {
                 scope.launch {

@@ -161,6 +161,18 @@
                     android:layout_height="wrap_content"
                     android:text="@string/space_3" />
 
+                <Button
+                    android:id="@+id/btn_all_door_open_switch_status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="btn_switch_status_open" />
+
+                <Button
+                    android:id="@+id/btn_all_door_close_switch_status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="btn_switch_status_close" />
+
             </LinearLayout>
 
             <LinearLayout

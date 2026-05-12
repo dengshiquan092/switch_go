@@ -14,7 +14,7 @@
     <string name="mcu_1_version">MCU-1 Version</string>
     <string name="mcu_2_version">MCU-2 Version</string>
     <string name="exit">Exit</string>
-    <string name="clear">Clear</string>
+    <string name="clear">Clear All Button Status</string>
     <string name="update_mcu_1">Update MCU-1</string>
     <string name="update_mcu_2">Update MCU-2</string>
     <string name="reboot_mcu_1">Reboot MCU-1</string>

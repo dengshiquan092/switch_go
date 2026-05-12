@@ -43,6 +43,8 @@ import android.widget.Button
 import android.graphics.Color
 import android.os.Looper
 import kotlinx.coroutines.withContext
+import android.widget.LinearLayout
+import android.view.ViewGroup // 如果你使用了之前提到的 ViewGroup 遍历法，也需要这个
 
 class SwitchGoActivity : AppCompatActivity(), View.OnClickListener, McuUpdateCallback {
     private lateinit var rtti: TextView
@@ -213,20 +215,29 @@ class SwitchGoActivity : AppCompatActivity(), View.OnClickListener, McuUpdateCal
                 finish()
             }
             R.id.bt_clear_display -> {
+
+                // 1. 定义原始颜色和 TintList
                 val originColor = Color.parseColor("#D5D6D6")
                 val colorList = ColorStateList.valueOf(originColor)
 
-                // 获取 View 并设置颜色
-                findViewById<Button>(R.id.btn_space1).backgroundTintList = colorList
-                findViewById<Button>(R.id.btn_space2).backgroundTintList = colorList
-                findViewById<Button>(R.id.btn_space3).backgroundTintList = colorList
-                findViewById<Button>(R.id.bt_get_hid_usb).backgroundTintList = colorList
-                findViewById<Button>(R.id.bt_hid_get_mcu1_version).backgroundTintList = colorList
-                findViewById<Button>(R.id.bt_hid_get_mcu2_version).backgroundTintList = colorList
+                // 2. 将所有需要处理的容器放入一个列表
+                val containers = listOf(
+                    findViewById<LinearLayout>(R.id.battery_led),
+                    findViewById<LinearLayout>(R.id.light_control),
+                    findViewById<LinearLayout>(R.id.devices_mcu)
+                )
 
-
-                // 也可以顺便重置背景颜色，防止 Tint 失效
-                // findViewById<Button>(R.id.btn_space1).setBackgroundColor(Color.WHITE)
+                // 3. 执行统一修改
+                containers.forEach { container ->
+                    // 遍历当前容器内的所有子 View
+                    for (i in 0 until container.childCount) {
+                        val child = container.getChildAt(i)
+                        // 只有是按钮时才修改颜色
+                        if (child is Button) {
+                            child.backgroundTintList = colorList
+                        }
+                    }
+                }
 
                 setMsg("")
             }

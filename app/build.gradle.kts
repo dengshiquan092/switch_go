@@ -61,7 +61,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation (libs.utilcodex)
     implementation (libs.sdk)
-    implementation(files("libs/SwitchGoLibrary_1.1.5.aar"))
+    implementation(files("libs/SwitchGoLibrary_1.1.6.aar"))
 //    implementation(project(":SwitchGoLibrary"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

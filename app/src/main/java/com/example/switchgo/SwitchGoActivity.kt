@@ -326,10 +326,12 @@ class SwitchGoActivity : AppCompatActivity(), View.OnClickListener, McuUpdateCal
                                 if (isAllValid) {
                                     btn.backgroundTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.GREEN)
                                     setMsg("检测通过：所有状态符合预期 (Green)")
+                                    setMsg(parseResponse(response))
                                 } else {
                                     btn.backgroundTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.RED)
                                     val fullErrorLog = errorMessages.joinToString("\n")
                                     setMsg("门全部开启时,相关传感器检测失败 (Red):\n$fullErrorLog")
+                                    setMsg(parseResponse(response))
                                 }
                             }
                         }
@@ -409,12 +411,15 @@ class SwitchGoActivity : AppCompatActivity(), View.OnClickListener, McuUpdateCal
                                     // 全部符合预期
                                     btn.backgroundTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.GREEN)
                                     setMsg("检测通过：所有状态符合预期 (Green)")
+
+                                    setMsg(parseResponse(response))
                                 } else {
                                     // 存在异常
                                     btn.backgroundTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.RED)
                                     // 将所有收集到的错误信息一次性显示在 UI 上
                                     val fullErrorLog = errorMessages.joinToString("\n")
                                     setMsg("门全部关闭时,相关传感器检测失败 (Red):\n$fullErrorLog")
+                                    setMsg(parseResponse(response))
                                 }
                             }
                         }
@@ -551,23 +556,277 @@ class SwitchGoActivity : AppCompatActivity(), View.OnClickListener, McuUpdateCal
                 switchGo.controllerAllDoors(allGate, allGate, allGate, allGate)
             }
             R.id.bt_switch_left_turn -> {
-                signal = if (signal == 0) 1 else 0
-                switchGo.controllerTurnSignal(signal, 0)
+                switchGo.controllerTurnSignal(1, 0)
+
+                // 这里的 v 通常是 onClick(View v) 传入的参数
+                val currentView = v
+
+                // 2. 弹出对话框确认状态
+                androidx.appcompat.app.AlertDialog.Builder(currentView.context)
+                    .setTitle("左转灯确认")
+                    .setMessage("机器人前方左转灯和后方的左转灯是否都正常亮起？(需要关闭所有的门后在测试)")
+                    .setPositiveButton("YES") { _, _ ->
+                        // 使用 backgroundTintList 修改为绿色
+                        currentView?.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                            android.graphics.Color.GREEN
+                        )
+                        switchGo.controllerTurnSignal(0,0)
+                    }
+                    .setNegativeButton("NO") { _, _ ->
+                        // 使用 backgroundTintList 修改为红色
+                        currentView?.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                            android.graphics.Color.RED
+                        )
+                        switchGo.controllerTurnSignal(0,0)
+                    }
+                    .setCancelable(false)
+                    .show()
+
+
             }
             R.id.bt_switch_right_turn -> {
-                signal = if (signal == 1) 0 else 1
-                switchGo.controllerTurnSignal(0, signal)
+                //signal = if (signal == 1) 0 else 1
+                switchGo.controllerTurnSignal(0, 1)
+                val currentView = v
+                // 2. 弹出对话框确认状态
+                androidx.appcompat.app.AlertDialog.Builder(currentView.context)
+                    .setTitle("右转灯确认")
+                    .setMessage("机器人前方右转灯和后方的右转灯是否都正常亮起？(需要关闭所有的门后在测试)")
+                    .setPositiveButton("YES") { _, _ ->
+                        // 使用 backgroundTintList 修改为绿色
+                        currentView?.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                            android.graphics.Color.GREEN
+                        )
+                        switchGo.controllerTurnSignal(0,0)
+                    }
+                    .setNegativeButton("NO") { _, _ ->
+                        // 使用 backgroundTintList 修改为红色
+                        currentView?.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                            android.graphics.Color.RED
+                        )
+                        switchGo.controllerTurnSignal(0,0)
+                    }
+                    .setCancelable(false)
+                    .show()
             }
-            R.id.bt_rbg_mode1 -> switchGo.toggleAmbientLight(1, 50, 50, 50)
-            R.id.bt_rbg_mode2 -> switchGo.toggleAmbientLight(2, 255, 0, 0)
-            R.id.bt_rbg_mode3 -> switchGo.toggleAmbientLight(3, 0, 255, 0)
-            R.id.bt_rbg_mode4 -> switchGo.toggleAmbientLight(4, 0, 0, 255)
+            R.id.bt_rbg_mode1 -> {
+                switchGo.toggleAmbientLight(1, 50, 50, 50)
+                val currentView = v
+                // 2. 弹出对话框确认状态
+                androidx.appcompat.app.AlertDialog.Builder(currentView.context)
+                    .setTitle("下方圆形灯带确认")
+                    .setMessage("下方圆形灯带是否正在闪烁？")
+                    .setPositiveButton("YES") { _, _ ->
+                        // 使用 backgroundTintList 修改为绿色
+                        currentView?.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                            android.graphics.Color.GREEN
+                        )
+                        switchGo.toggleAmbientLight(0, 0, 0, 0)
+                    }
+                    .setNegativeButton("NO") { _, _ ->
+                        // 使用 backgroundTintList 修改为红色
+                        currentView?.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                            android.graphics.Color.RED
+                        )
+                        switchGo.toggleAmbientLight(0, 0, 0, 0)
+                    }
+                    .setCancelable(false)
+                    .show()
+
+            }
+            R.id.bt_rbg_mode2 ->{
+                switchGo.toggleAmbientLight(2, 255, 0, 0)
+                val currentView = v
+                // 2. 弹出对话框确认状态
+                androidx.appcompat.app.AlertDialog.Builder(currentView.context)
+                    .setTitle("下方圆形灯带确认")
+                    .setMessage("下方圆形灯带是否正呼吸？")
+                    .setPositiveButton("YES") { _, _ ->
+                        // 使用 backgroundTintList 修改为绿色
+                        currentView?.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                            android.graphics.Color.GREEN
+                        )
+                        switchGo.toggleAmbientLight(0, 0, 0, 0)
+                    }
+                    .setNegativeButton("NO") { _, _ ->
+                        // 使用 backgroundTintList 修改为红色
+                        currentView?.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                            android.graphics.Color.RED
+                        )
+                        switchGo.toggleAmbientLight(0, 0, 0, 0)
+                    }
+                    .setCancelable(false)
+                    .show()
+            }
+            R.id.bt_rbg_mode3 -> {
+                switchGo.toggleAmbientLight(3, 0, 255, 0)
+                val currentView = v
+                // 2. 弹出对话框确认状态
+                androidx.appcompat.app.AlertDialog.Builder(currentView.context)
+                    .setTitle("下方圆形灯带确认")
+                    .setMessage("下方圆形灯带常亮？")
+                    .setPositiveButton("YES") { _, _ ->
+                        // 使用 backgroundTintList 修改为绿色
+                        currentView?.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                            android.graphics.Color.GREEN
+                        )
+                        switchGo.toggleAmbientLight(0, 0, 0, 0)
+                    }
+                    .setNegativeButton("NO") { _, _ ->
+                        // 使用 backgroundTintList 修改为红色
+                        currentView?.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                            android.graphics.Color.RED
+                        )
+                        switchGo.toggleAmbientLight(0, 0, 0, 0)
+                    }
+                    .setCancelable(false)
+                    .show()
+            }
+            R.id.bt_rbg_mode4 ->{
+                switchGo.toggleAmbientLight(4, 0, 0, 255)
+                val currentView = v
+                // 2. 弹出对话框确认状态
+                androidx.appcompat.app.AlertDialog.Builder(currentView.context)
+                    .setTitle("下方圆形灯带确认")
+                    .setMessage("下方圆形灯带是否颜色渐变？")
+                    .setPositiveButton("YES") { _, _ ->
+                        // 使用 backgroundTintList 修改为绿色
+                        currentView?.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                            android.graphics.Color.GREEN
+                        )
+                        switchGo.toggleAmbientLight(0, 0, 0, 0)
+                    }
+                    .setNegativeButton("NO") { _, _ ->
+                        // 使用 backgroundTintList 修改为红色
+                        currentView?.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                            android.graphics.Color.RED
+                        )
+                        switchGo.toggleAmbientLight(0, 0, 0, 0)
+                    }
+                    .setCancelable(false)
+                    .show()
+            }
             R.id.bt_rbg_close -> switchGo.toggleAmbientLight(0, 0, 0, 0)
-            R.id.bt_set_soc_0 -> switchGo.setBatteryIndicator(0)
-            R.id.bt_set_soc_25 -> switchGo.setBatteryIndicator(25)
-            R.id.bt_set_soc_50 -> switchGo.setBatteryIndicator(50)
-            R.id.bt_set_soc_75 -> switchGo.setBatteryIndicator(75)
-            R.id.bt_set_soc_100 -> switchGo.setBatteryIndicator(100)
+            R.id.bt_set_soc_0 -> {
+                switchGo.setBatteryIndicator(0)
+                val currentView = v
+                // 2. 弹出对话框确认状态
+                androidx.appcompat.app.AlertDialog.Builder(currentView.context)
+                    .setTitle("后方电量指示灯确认")
+                    .setMessage("后方电量指示灯是否是0%(灯全部不亮的状态)？")
+                    .setPositiveButton("YES") { _, _ ->
+                        // 使用 backgroundTintList 修改为绿色
+                        currentView?.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                            android.graphics.Color.GREEN
+                        )
+
+                    }
+                    .setNegativeButton("NO") { _, _ ->
+                        // 使用 backgroundTintList 修改为红色
+                        currentView?.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                            android.graphics.Color.RED
+                        )
+
+                    }
+                    .setCancelable(false)
+                    .show()
+            }
+            R.id.bt_set_soc_25 -> {
+                switchGo.setBatteryIndicator(25)
+                val currentView = v
+                // 2. 弹出对话框确认状态
+                androidx.appcompat.app.AlertDialog.Builder(currentView.context)
+                    .setTitle("后方电量指示灯确认")
+                    .setMessage("后方电量指示灯是否是25%(只有最下方1组灯是亮起的状态)？")
+                    .setPositiveButton("YES") { _, _ ->
+                        // 使用 backgroundTintList 修改为绿色
+                        currentView?.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                            android.graphics.Color.GREEN
+                        )
+                        switchGo.setBatteryIndicator(0)
+                    }
+                    .setNegativeButton("NO") { _, _ ->
+                        // 使用 backgroundTintList 修改为红色
+                        currentView?.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                            android.graphics.Color.RED
+                        )
+                        switchGo.setBatteryIndicator(0)
+                    }
+                    .setCancelable(false)
+                    .show()
+            }
+            R.id.bt_set_soc_50 -> {
+                switchGo.setBatteryIndicator(50)
+                val currentView = v
+                // 2. 弹出对话框确认状态
+                androidx.appcompat.app.AlertDialog.Builder(currentView.context)
+                    .setTitle("后方电量指示灯确认")
+                    .setMessage("后方电量指示灯是否是50%(只有最下方2组灯是亮起的状态)？")
+                    .setPositiveButton("YES") { _, _ ->
+                        // 使用 backgroundTintList 修改为绿色
+                        currentView?.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                            android.graphics.Color.GREEN
+                        )
+                        switchGo.setBatteryIndicator(0)
+                    }
+                    .setNegativeButton("NO") { _, _ ->
+                        // 使用 backgroundTintList 修改为红色
+                        currentView?.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                            android.graphics.Color.RED
+                        )
+                        switchGo.setBatteryIndicator(0)
+                    }
+                    .setCancelable(false)
+                    .show()
+            }
+            R.id.bt_set_soc_75 -> {
+                switchGo.setBatteryIndicator(75)
+                val currentView = v
+                // 2. 弹出对话框确认状态
+                androidx.appcompat.app.AlertDialog.Builder(currentView.context)
+                    .setTitle("后方电量指示灯确认")
+                    .setMessage("后方电量指示灯是否是75%(只有最下方3组灯是亮起的状态)？")
+                    .setPositiveButton("YES") { _, _ ->
+                        // 使用 backgroundTintList 修改为绿色
+                        currentView?.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                            android.graphics.Color.GREEN
+                        )
+                        switchGo.setBatteryIndicator(0)
+                    }
+                    .setNegativeButton("NO") { _, _ ->
+                        // 使用 backgroundTintList 修改为红色
+                        currentView?.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                            android.graphics.Color.RED
+                        )
+                        switchGo.setBatteryIndicator(0)
+                    }
+                    .setCancelable(false)
+                    .show()
+            }
+            R.id.bt_set_soc_100 -> {
+                switchGo.setBatteryIndicator(100)
+                val currentView = v
+                // 2. 弹出对话框确认状态
+                androidx.appcompat.app.AlertDialog.Builder(currentView.context)
+                    .setTitle("后方电量指示灯确认")
+                    .setMessage("后方电量指示灯是否是100%(灯全部亮起)？")
+                    .setPositiveButton("YES") { _, _ ->
+                        // 使用 backgroundTintList 修改为绿色
+                        currentView?.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                            android.graphics.Color.GREEN
+                        )
+                        switchGo.setBatteryIndicator(0)
+                    }
+                    .setNegativeButton("NO") { _, _ ->
+                        // 使用 backgroundTintList 修改为红色
+                        currentView?.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                            android.graphics.Color.RED
+                        )
+                        switchGo.setBatteryIndicator(0)
+                    }
+                    .setCancelable(false)
+                    .show()
+            }
             R.id.get_all_switch -> {
                 scope.launch {
                     val response = this@SwitchGoActivity.switchGo.getAllSwitchStates()
@@ -600,7 +859,7 @@ class SwitchGoActivity : AppCompatActivity(), View.OnClickListener, McuUpdateCal
                 // 2. 弹出对话框确认状态
                 androidx.appcompat.app.AlertDialog.Builder(currentView.context)
                     .setTitle("灯光确认")
-                    .setMessage("内部灯是否都亮起？")
+                    .setMessage("内部灯是否都亮起？(需要打开所有的门后在测试)")
                     .setPositiveButton("YES") { _, _ ->
                         // 使用 backgroundTintList 修改为绿色
                         currentView?.backgroundTintList = android.content.res.ColorStateList.valueOf(

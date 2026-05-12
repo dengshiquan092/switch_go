@@ -861,8 +861,8 @@ class SwitchGoActivity : AppCompatActivity(), View.OnClickListener, McuUpdateCal
             R.id.get_switch_lamp -> {
                 // 将门打开
 //                switchGo.controllerAllDoors(1, 1, 1, 1)
-                interLight = if (interLight == 1) 0 else 1
-                switchGo.toggleInteriorLight(interLight)
+                //interLight = if (interLight == 1) 0 else 1
+                switchGo.toggleInteriorLight(1)
 
                 // 这里的 v 通常是 onClick(View v) 传入的参数
                 val currentView = v
@@ -876,12 +876,14 @@ class SwitchGoActivity : AppCompatActivity(), View.OnClickListener, McuUpdateCal
                         currentView?.backgroundTintList = android.content.res.ColorStateList.valueOf(
                             android.graphics.Color.GREEN
                         )
+                        switchGo.toggleInteriorLight(0)
                     }
                     .setNegativeButton("NO") { _, _ ->
                         // 使用 backgroundTintList 修改为红色
                         currentView?.backgroundTintList = android.content.res.ColorStateList.valueOf(
                             android.graphics.Color.RED
                         )
+                        switchGo.toggleInteriorLight(1)
                     }
                     .setCancelable(false)
                     .show()
